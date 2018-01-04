@@ -13,6 +13,7 @@ public class TetrisGameController : MonoBehaviour
     // TODO: Put to installer for spawner
     public GameObject TetrisBlockPrefab;
 
+    TetrisPiece currentFallingPiece;
 
     // Use this for initialization
     void Start()
@@ -30,35 +31,52 @@ public class TetrisGameController : MonoBehaviour
     {
         GameObject block;
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(0, 0);
+        TetrisPiece jPiece = new TetrisPiece();
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(0, 1);
+        for (int i = 0; i < jPiece.currentBlockPlacements.GetLength(0); i++)
+        {
+            block = Instantiate(TetrisBlockPrefab, this.transform);
+            block.transform.localPosition = GetPosition(jPiece.currentBlockPlacements[i, 0], jPiece.currentBlockPlacements[i, 1]);
+        }
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(0, 2);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(0, 0);
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(1, 1);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(0, 1);
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(5, 5);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(0, 2);
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(5, 6);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(1, 1);
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(5, 7);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(5, 5);
 
-        block = Instantiate(TetrisBlockPrefab, this.transform);
-        block.transform.localPosition = GetPosition(4, 7);
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(5, 6);
+
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(5, 7);
+
+        //block = Instantiate(TetrisBlockPrefab, this.transform);
+        //block.transform.localPosition = GetPosition(4, 7);
 
     }
 
     Vector2 GetPosition(int row, int col)
     {
-        Vector3 desiredPosition = new Vector3(col * blockSize.x, row * blockSize.y);
+        Vector3 desiredPosition = new Vector2(col * blockSize.x, -row * blockSize.y);
         return desiredPosition;
+    }
+
+    IEnumerator UpdateFallingPiece()
+    {
+        while (true)
+        {
+            yield return new WaitForSeconds(0.3f);
+        }
+        yield return null;
     }
 }
