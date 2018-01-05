@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Zenject;
 
 public class TetrisGameController : MonoBehaviour
 {
@@ -15,54 +16,74 @@ public class TetrisGameController : MonoBehaviour
 
     TetrisPiece currentFallingPiece;
 
-    // Use this for initialization
-    void Start()
+    TetrisPieceFactory tetrisPieceFactory;
+
+    [Inject]
+    void Init(TetrisPieceFactory tetrisPieceFactory)
     {
-        GenerateBoard();
+        this.tetrisPieceFactory = tetrisPieceFactory;
     }
 
     // Update is called once per frame
     void Update()
     {
-
-    }
-
-    void GenerateBoard()
-    {
-        GameObject block;
-
-        TetrisPiece jPiece = new TetrisPiece();
-
-        for (int i = 0; i < jPiece.currentBlockPlacements.GetLength(0); i++)
+        if (Input.GetKeyDown(KeyCode.A))
         {
-            block = Instantiate(TetrisBlockPrefab, this.transform);
-            block.transform.localPosition = GetPosition(jPiece.currentBlockPlacements[i, 0], jPiece.currentBlockPlacements[i, 1]);
+            TetrisPiece tetrisPiece = this.tetrisPieceFactory.Generate((TetrisPiece.PieceType)Random.Range(0, (int)TetrisPiece.PieceType.LENGTH));
+            RenderPiece(tetrisPiece);
+
+            currentFallingPiece = tetrisPiece;
         }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(0, 0);
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            currentFallingPiece.MoveObj(0, -1);
+            currentFallingPiece.RefreshObj();
+        }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(0, 1);
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            currentFallingPiece.MoveObj(0, 1);
+            currentFallingPiece.RefreshObj();
+        }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(0, 2);
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            currentFallingPiece.MoveObj(-1, 0);
+            currentFallingPiece.RefreshObj();
+        }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(1, 1);
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            currentFallingPiece.Rotate(TetrisPiece.Rotation.CW);
+            currentFallingPiece.RefreshObj();
+        }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(5, 5);
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            Debug.Log(currentFallingPiece.GetString());
+        }
+    }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(5, 6);
+    //TODO: Refactor to factory
+    void RenderPiece(TetrisPiece piece)
+    {
+        for (int i = 0; i < piece.size.row; i++)
+        {
+            for (int j = 0; j < piece.size.col; j++)
+            {
+                if (piece.GetPiece(i, j) == 1)
+                {
+                    GameObject block = Instantiate(TetrisBlockPrefab, this.transform);
+                    BoxCollider boxCollider = block.GetComponent<BoxCollider>();
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(5, 7);
+                    piece.objectSize = new Vector3(boxCollider.size.x * block.transform.localScale.x, boxCollider.size.y * block.transform.localScale.y);
+                    piece.SetBlockObject(i, j, block);
+                }
+            }
+        }
 
-        //block = Instantiate(TetrisBlockPrefab, this.transform);
-        //block.transform.localPosition = GetPosition(4, 7);
-
+        piece.RefreshObj();
     }
 
     Vector2 GetPosition(int row, int col)
