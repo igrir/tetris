@@ -2,6 +2,7 @@
 using UnityEditor;
 using System.Collections.Generic;
 using System;
+using UniRx;
 
 public class TetrisPiece
 {
@@ -14,6 +15,7 @@ public class TetrisPiece
         O,
         S,
         Z,
+        DOT,
         LENGTH
     }
 
@@ -28,7 +30,7 @@ public class TetrisPiece
     public Vector3 objectSize;
 
     int[,] currentBlockPlacements;
-    GameObject[,] currentBlockObject;
+    TetrisCell[,] currentBlockCells;
 
     public TetrisPiece()
     {
@@ -41,7 +43,7 @@ public class TetrisPiece
         int colLength = size.col;
 
         int[,] placementTmpBlock = new int[rowLength, colLength];
-        GameObject[,] goTmpBlock = new GameObject[rowLength, colLength];
+        TetrisCell[,] cellTmpBlock = new TetrisCell[rowLength, colLength];
 
         if (rotation == Rotation.CW)
         {
@@ -52,7 +54,7 @@ public class TetrisPiece
                 for (int originCol = 0; originCol < colLength; originCol++)
                 {
                     placementTmpBlock[targetRow, targetCol] = currentBlockPlacements[originRow, originCol];
-                    goTmpBlock[targetRow, targetCol] = currentBlockObject[originRow, originCol];
+                    cellTmpBlock[targetRow, targetCol] = currentBlockCells[originRow, originCol];
 
                     targetRow++;
                 }
@@ -68,7 +70,7 @@ public class TetrisPiece
                 for (int originRow = 0; originRow < rowLength; originRow++)
                 {
                     placementTmpBlock[targetRow, targetCol] = currentBlockPlacements[originRow, originCol];
-                    goTmpBlock[targetRow, targetCol] = currentBlockObject[originRow, originCol];
+                    cellTmpBlock[targetRow, targetCol] = currentBlockCells[originRow, originCol];
 
                     targetCol++;
                 }
@@ -77,7 +79,7 @@ public class TetrisPiece
         }
 
         currentBlockPlacements = placementTmpBlock;
-        currentBlockObject = goTmpBlock;
+        currentBlockCells = cellTmpBlock;
     }
 
     public string GetString()
@@ -102,12 +104,12 @@ public class TetrisPiece
 
         size.row = placements.GetLength(0);
         size.col = placements.GetLength(1);
-        this.currentBlockObject = new GameObject[size.row, size.col];
+        this.currentBlockCells = new TetrisCell[size.row, size.col];
     }
 
-    public void SetBlockObject(int row, int col, GameObject obj)
+    public void SetCell(int row, int col, TetrisCell obj)
     {
-        currentBlockObject[row, col] = obj;
+        currentBlockCells[row, col] = obj;
     }
 
     public int GetPiece(int row, int col)
@@ -133,9 +135,20 @@ public class TetrisPiece
         {
             for (int itCol = 0; itCol < size.col; itCol++)
             {
-                if (currentBlockObject[itRow, itCol] != null)
-                    currentBlockObject[itRow, itCol].transform.localPosition = new Vector3((itCol + position.col) * objectSize.x, (itRow + position.row) * objectSize.y, 0);
+                if (currentBlockCells[itRow, itCol] != null)
+                    currentBlockCells[itRow, itCol].transform.localPosition = new Vector3((itCol + position.col) * objectSize.x, -((itRow + position.row) * objectSize.y), 0);
             }
         }
     }
+
+    public int Get(int row, int col)
+    {
+        return currentBlockPlacements[row, col];
+    }
+
+    public TetrisCell GetCell(int row, int col)
+    {
+        return currentBlockCells[row, col];
+    }
+
 }
