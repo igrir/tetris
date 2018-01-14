@@ -12,25 +12,49 @@ public class TetrisGameController : MonoBehaviour
     public int col = 10;
 
     // TODO: Acquire this number from prefab
-    public Vector3 blockSize = new Vector3(0.4482649f, 0.4482649f, 0.4482649f);
+    //public Vector3 blockSize = new Vector3(0.4482649f, 0.4482649f, 0.4482649f);
+    public Vector3 blockSize;
 
-    // TODO: Put to installer for spawner
-    public GameObject TetrisBlockPrefab;
+    public float fallingUpdateSpeed = 0.2f;
+
+    GameObject tetrisBlockPrefab;
 
     public TextMeshPro DebugTextPrefab;
-    TextMeshPro[,] debugData;
 
     TetrisPiece currentFallingPiece;
-    TetrisPieceFactory tetrisPieceFactory;
+    public TetrisPiece CurrentFallingPiece
+    {
+        get { return this.currentFallingPiece; }
+    }
+
+    TextMeshPro[,] debugData;
+
+    TetrisPiece.Factory tetrisPieceFactory;
     TetrisBoard tetrisBoard;
+    public bool isUpdatingFallingPiece = true;
+
+    [Inject(Id = "IterateTestWaitTime")]
+    float iterateTestWaitTime = 0.01f;
 
     [Inject]
-    void Init(TetrisPieceFactory tetrisPieceFactory)
+    void Init(
+        TetrisPiece.Factory tetrisPieceFactory,
+        TetrisBoard tetrisBoard,
+        [Inject(Id = "TetrisBlockPrefab")]
+        GameObject tetrisBlockPrefab
+        )
     {
         this.tetrisPieceFactory = tetrisPieceFactory;
+        this.tetrisBoard = tetrisBoard;
+        this.tetrisBlockPrefab = tetrisBlockPrefab;
 
-        tetrisBoard = new TetrisBoard(row, col);
         tetrisBoard.onCellCleared += TetrisBoard_OnCellCleared;
+
+        // setup block size
+        BoxCollider boxCollider = tetrisBlockPrefab.GetComponent<BoxCollider>();
+        blockSize.x = tetrisBlockPrefab.transform.localScale.x * boxCollider.size.x;
+        blockSize.y = tetrisBlockPrefab.transform.localScale.y * boxCollider.size.y;
+        blockSize.z = tetrisBlockPrefab.transform.localScale.z * boxCollider.size.z;
 
         InitDebug();
     }
@@ -44,60 +68,128 @@ public class TetrisGameController : MonoBehaviour
             .Where(_ => Input.GetKeyDown(KeyCode.LeftArrow))
             .Subscribe(x =>
             {
-                if (currentFallingPiece != null)
-                {
-                    if (!tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.LEFT))
-                    {
-                        currentFallingPiece.MoveObj(0, -1);
-                        currentFallingPiece.RefreshObj();
-                    }
-                }
+                MovePiece(0, -1);
             });
 
         var rightKey = inputInterval
             .Where(_ => Input.GetKeyDown(KeyCode.RightArrow))
             .Subscribe(x =>
             {
-                if (currentFallingPiece != null)
-                {
-                    if (!tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.RIGHT))
-                    {
-                        currentFallingPiece.MoveObj(0, 1);
-                        currentFallingPiece.RefreshObj();
-                    }
-                }
+                MovePiece(0, 1);
             });
 
         var upKey = inputInterval
             .Where(_ => Input.GetKeyDown(KeyCode.UpArrow))
             .Subscribe(x =>
             {
-                if (currentFallingPiece != null)
-                {
-                    currentFallingPiece.Rotate(TetrisPiece.Rotation.CW);
-                    currentFallingPiece.RefreshObj();
-                }
+                RotatePiece();
             });
 
-        StartCoroutine(UpdateFallingPiece());
+        StartCoroutine(UpdateGame());
+        StartCoroutine(IEUpdateFallingPiece());
     }
 
-    // Update is called once per frame
-    void Update()
+
+    IEnumerator UpdateGame()
     {
-        if (Input.GetKeyDown(KeyCode.A))
+        while (true)
         {
-            //TetrisPiece tetrisPiece = this.tetrisPieceFactory.Generate((TetrisPiece.PieceType)Random.Range(0, (int)TetrisPiece.PieceType.LENGTH));
-            TetrisPiece tetrisPiece = this.tetrisPieceFactory.Generate(TetrisPiece.PieceType.I);
-            tetrisPiece.position.row = 0;
-            tetrisPiece.position.col = 3;
+            yield return null;
 
-            RenderPiece(tetrisPiece);
-
-            currentFallingPiece = tetrisPiece;
+            if (Input.GetKeyDown(KeyCode.A))
+            {
+                if (this.tetrisPieceFactory != null)
+                {
+                    CreatePiece((TetrisPiece.PieceType)Random.Range(0, (int)TetrisPiece.PieceType.LENGTH));
+                }
+            }
+            UpdateDebug();
         }
-        UpdateDebug();
     }
+
+
+    #region Board Action
+    public void MovePiece(int row, int col)
+    {
+        if (currentFallingPiece != null)
+        {
+            bool moveLeftAllowed = col < 0 && !tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.LEFT);
+            bool moveRightAllowed = col > 0 && !tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.RIGHT);
+            if (moveLeftAllowed || moveRightAllowed)
+            {
+                currentFallingPiece.Move(row, col);
+                currentFallingPiece.ApplyChange();
+                currentFallingPiece.RefreshView();
+            }
+        }
+    }
+
+    public void RotatePiece()
+    {
+        if (currentFallingPiece != null)
+        {
+            currentFallingPiece.Rotate(TetrisPiece.Rotation.CW);
+            currentFallingPiece.ApplyChange();
+            currentFallingPiece.RefreshView();
+        }
+    }
+
+    public void UpdateFallingPiece()
+    {
+        if (currentFallingPiece != null)
+        {
+            if (!currentFallingPiece.IsObstructed(TetrisBoard.ObstructionDirection.DOWN))
+            {
+                // move object
+                currentFallingPiece.Move(1, 0);
+                currentFallingPiece.RefreshView();
+            }
+            else if (currentFallingPiece.IsObstructed(TetrisBoard.ObstructionDirection.DOWN))
+            {
+                tetrisBoard.AttachPiece(currentFallingPiece);
+                tetrisBoard.CheckRowClear();
+
+                currentFallingPiece = null;
+            }
+        }
+    }
+
+    public TetrisPiece CreatePiece(TetrisPiece.PieceType type)
+    {
+        TetrisPiece tetrisPiece = this.tetrisPieceFactory.Create();
+        tetrisPiece.Init(type);
+        //TetrisPiece tetrisPiece = this.tetrisPieceFactory.Generate(TetrisPiece.PieceType.I);
+        tetrisPiece.position.row = 0;
+        tetrisPiece.position.col = 3;
+
+        RenderPiece(tetrisPiece);
+
+        currentFallingPiece = tetrisPiece;
+
+        return tetrisPiece;
+    }
+
+    public void AttachPiece(TetrisPiece piece)
+    {
+        tetrisBoard.AttachPiece(piece);
+    }
+
+    public void AttachPiece(TetrisPiece piece, int row, int col)
+    {
+        piece.SetPos(row, col);
+        piece.ApplyChange();
+        piece.RefreshView();
+
+        tetrisBoard.AttachPiece(piece);
+        tetrisBoard.CheckRowClear();
+    }
+
+    public void CheckRowClear()
+    {
+        tetrisBoard.CheckRowClear();
+    }
+
+    #endregion
 
     //TODO: Refactor to factory
     void RenderPiece(TetrisPiece piece)
@@ -108,7 +200,7 @@ public class TetrisGameController : MonoBehaviour
             {
                 if (piece.GetPiece(i, j) == 1)
                 {
-                    GameObject block = Instantiate(TetrisBlockPrefab, this.transform);
+                    GameObject block = Instantiate(tetrisBlockPrefab, this.transform);
                     BoxCollider boxCollider = block.GetComponent<BoxCollider>();
 
                     TetrisCell tetrisCell = block.AddComponent<TetrisCell>();
@@ -120,7 +212,7 @@ public class TetrisGameController : MonoBehaviour
             }
         }
 
-        piece.RefreshObj();
+        piece.RefreshView();
     }
 
     Vector2 GetPosition(int row, int col)
@@ -129,28 +221,13 @@ public class TetrisGameController : MonoBehaviour
         return desiredPosition;
     }
 
-    IEnumerator UpdateFallingPiece()
+    IEnumerator IEUpdateFallingPiece()
     {
-        while (true)
+        while (isUpdatingFallingPiece)
         {
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(fallingUpdateSpeed);
 
-            if (currentFallingPiece != null)
-            {
-                if (!tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.DOWN))
-                {
-                    // move object
-                    currentFallingPiece.MoveObj(1, 0);
-                    currentFallingPiece.RefreshObj();
-                }
-                else if (tetrisBoard.IsObstructed(currentFallingPiece, TetrisBoard.ObstructionDirection.DOWN))
-                {
-                    tetrisBoard.AttachPiece(currentFallingPiece);
-                    tetrisBoard.CheckRowClear();
-
-                    currentFallingPiece = null;
-                }
-            }
+            UpdateFallingPiece();
         }
     }
 
@@ -173,6 +250,9 @@ public class TetrisGameController : MonoBehaviour
 
     public void UpdateDebug()
     {
+        if (tetrisBoard == null)
+            return;
+
         for (int itRow = 0; itRow < tetrisBoard.Row; itRow++)
         {
             for (int itCol = 0; itCol < tetrisBoard.Col; itCol++)
@@ -192,6 +272,53 @@ public class TetrisGameController : MonoBehaviour
     void TetrisBoard_OnCellCleared(int row, int coll)
     {
 
+    }
+    #endregion
+
+    #region Debug
+    public string GetBoardString()
+    {
+        return tetrisBoard.GetString();
+    }
+    #endregion
+
+
+    #region Test
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="count">Default to max row</param>
+    /// <returns></returns>
+    public IEnumerator IterateFall(int count = 20)
+    {
+        int maxCount = (count <= 1 ? 1 : count);
+        for (int i = 0; i < maxCount; i++)
+        {
+            UpdateFallingPiece();
+            if (CurrentFallingPiece == null) { break; }
+            else { yield return new WaitForSeconds(iterateTestWaitTime); }
+        }
+    }
+
+    public IEnumerator IterateMoveCol(int col)
+    {
+        for (int i = 0; i < Mathf.Abs(col); i++)
+        {
+            MovePiece(0, col != 0 ? (col < 0 ? -1 : 1) : 0);
+            if (CurrentFallingPiece == null) { break; }
+            else { yield return new WaitForSeconds(iterateTestWaitTime); }
+        }
+    }
+
+    public IEnumerator IterateRotate(int count = 1, TetrisPiece.Rotation rotation = TetrisPiece.Rotation.CW)
+    {
+        int maxCount = (count <= 1 ? 1 : count);
+        for (int i = 0; i < maxCount; i++)
+        {
+            RotatePiece();
+            if (CurrentFallingPiece == null) { break; }
+            else { yield return new WaitForSeconds(iterateTestWaitTime); }
+        }
     }
     #endregion
 }

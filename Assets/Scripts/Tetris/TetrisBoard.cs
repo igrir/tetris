@@ -27,8 +27,6 @@ public class TetrisBoard
         }
     }
 
-    List<int> clearedRows = new List<int>();
-
     public delegate void OnCellCleared(int row, int col);
     public OnCellCleared onCellCleared;
 
@@ -38,7 +36,7 @@ public class TetrisBoard
         RIGHT,
         DOWN
     }
-        
+
     public TetrisBoard(int row, int col)
     {
         this.row = row;
@@ -149,8 +147,7 @@ public class TetrisBoard
                     }
                     else
                     {
-                        Debug.Log("hit bottom");
-                        // hit the bottom
+                        // hit bottom
                         return true;
                     }
                 }
@@ -168,25 +165,44 @@ public class TetrisBoard
 
     public void CheckRowClear()
     {
+        bool clearedRow = false;
         for (int itRow = this.row - 1; itRow >= 0; itRow--)
         {
-            bool isCleared = true;
-            for (int itCol = 0; itCol < this.col; itCol++)
+            if (isRowFull(itRow))
             {
-                if (Get(itRow, itCol) == 0)
-                {
-                    isCleared = false;
-                    continue;
-                }
-            }
-
-            if (isCleared)
-            {
-                clearedRows.Add(itRow);
                 ClearRow(itRow);
-                DropClearedRow();
+                clearedRow = true;
             }
         }
+
+        if (clearedRow)
+        {
+            DropClearedRow();
+        }
+    }
+
+    bool isRowFull(int row)
+    {
+        for (int itCol = 0; itCol < this.col; itCol++)
+        {
+            if (Get(row, itCol) == 0)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool isRowClear(int row)
+    {
+        for (int itCol = 0; itCol < this.col; itCol++)
+        {
+            if (Get(row, itCol) == 1)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     public void ClearRow(int clearedRow)
@@ -196,7 +212,10 @@ public class TetrisBoard
             boardData[clearedRow, itCol] = 0;
 
             //TODO: Put destroying functionality in other class?
-            GameObject.Destroy(tetrisCells[clearedRow, itCol].gameObject);
+            if (tetrisCells[clearedRow, itCol] != null)
+            {
+                GameObject.Destroy(tetrisCells[clearedRow, itCol].gameObject);
+            }
 
             if (onCellCleared != null)
             {
@@ -207,34 +226,83 @@ public class TetrisBoard
 
     void DropClearedRow()
     {
-        for (int itClearedRow = 0; itClearedRow < this.clearedRows.Count; itClearedRow++)
+
+        for (int currentRow = this.row - 1; currentRow > 0; currentRow--)
         {
-            int currentRow = this.clearedRows[itClearedRow];
 
-            // clearedRows always sorted from bottom to top
-            for (int itRow = currentRow; itRow > 0; itRow--)
+            if (isRowClear(currentRow))
             {
-                for (int itCol = 0; itCol < this.col; itCol++)
+                int unclearedRow = currentRow - 1;
+
+                // search non cleared row on top
+                bool foundUnclearedRow = false;
+                while (!foundUnclearedRow && unclearedRow > 0)
                 {
-                    // replace with its top
-                    boardData[itRow, itCol] = boardData[itRow - 1, itCol];
-
-
-                    //TODO: put cell view updates in other class?
-                    if (itRow - 1 < this.tetrisCells.GetLength(0) && itRow - 1 >= 0)
+                    if (!isRowClear(unclearedRow))
                     {
-                        TetrisCell cell = this.tetrisCells[itRow - 1, itCol];
-                        if (cell != null)
-                        {
-                            cell.transform.localPosition = new Vector3(itCol * cell.objectSize.x, -((itRow + 1) * cell.objectSize.y), 0);
-                        }
-                        tetrisCells[itRow, itCol] = tetrisCells[itRow - 1, itCol];
+                        foundUnclearedRow = true;
+                    }
+                    else
+                    {
+                        unclearedRow--;
                     }
                 }
+
+                int distanceToUnclearedRow = currentRow - unclearedRow;
+
+                if (foundUnclearedRow)
+                {
+                    for (int itRow = currentRow; itRow > 0; itRow--)
+                    {
+                        for (int itCol = 0; itCol < this.col; itCol++)
+                        {
+
+                            int swapRowIndex = itRow - distanceToUnclearedRow;
+
+                            if (swapRowIndex >= 0 && swapRowIndex < this.row)
+                            {
+                                // replace with its top
+                                boardData[itRow, itCol] = boardData[itRow - distanceToUnclearedRow, itCol];
+                                boardData[itRow - distanceToUnclearedRow, itCol] = 0;
+
+
+                                //TODO: put cell view updates in other class?
+                                if (itRow - distanceToUnclearedRow < this.tetrisCells.GetLength(0) && itRow - distanceToUnclearedRow >= 0)
+                                {
+                                    TetrisCell cell = this.tetrisCells[itRow - distanceToUnclearedRow, itCol];
+                                    if (cell != null)
+                                    {
+                                        cell.transform.localPosition = new Vector3(itCol * cell.objectSize.x, -((itRow) * cell.objectSize.y), 0);
+                                    }
+                                    tetrisCells[itRow, itCol] = tetrisCells[itRow - distanceToUnclearedRow, itCol];
+                                    tetrisCells[itRow - distanceToUnclearedRow, itCol] = null;
+                                }
+                            }
+                        }
+                    }
+
+                    //TODO: Move remaining most top because it wasn't moved as its distanceToUnclearedRow is more than board size
+                }
+            }
+        }
+    }
+
+    public string GetString()
+    {
+        string pieceStr = "";
+        for (int itRow = 0; itRow < row; itRow++)
+        {
+            for (int itCol = 0; itCol < col; itCol++)
+            {
+                pieceStr += boardData[itRow, itCol].ToString();
             }
 
+            if (itRow < row - 1)
+            {
+                pieceStr += "\n";
+            }
         }
-        clearedRows.Clear();
+        return pieceStr;
     }
 }
 

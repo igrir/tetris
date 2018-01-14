@@ -8,10 +8,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 31f4d42cec0daab45a3cb8aa47267c92, type: 3}
-  m_Name: GameInstaller
+  m_Script: {fileID: 11500000, guid: 545a996061a35514b8626ed61d06ed64, type: 3}
+  m_Name: GameSettingsInstaller
   m_EditorClassIdentifier: 
   TetrisBlockPrefab: {fileID: 1966196288502840, guid: 51bcf74d04751e141b7a25235d5944de,
+    type: 2}
+  TetrisGameControllerPrefab: {fileID: 1328847299479878, guid: 60aa996f43188a9428358dd967976cb3,
     type: 2}
   BoardRow: 20
   BoardCol: 10
